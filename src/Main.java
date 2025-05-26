@@ -8,7 +8,9 @@ import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.file.Files;
+import java.nio.file.OpenOption;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
@@ -16,7 +18,7 @@ import java.util.regex.Pattern;
 public class Main {
     private static final int PORT = 12345;
     private static final Map<String, Socket> clientSockets = new ConcurrentHashMap<>();
-    ////邮箱 -> 输出流
+    //邮箱 -> 输出流
     private static final Map<String,PrintWriter> clientOuts = new ConcurrentHashMap<>();
     //邮箱 -> 密码、昵称
     private static final Map<String, String[]> users = new HashMap<>();
@@ -27,11 +29,17 @@ public class Main {
     private static String defUserInfo="";
     // 初始化示例用户
     static {
+
         users.put("wanght2024@mail.sustech.edu.cn", new String[]{"123456","wanght"});
         users.put("1",new String[]{"123456","wanght2"});
         try
         {
-            defUserInfo=Files.readString(Path.of("D:\\KlotskiServer\\src\\defaultUserArchive.json"));
+            List<String> ls=Files.readAllLines(Path.of("/home/users.conf"));
+            for(String s:ls){
+                String[] split = s.split(Pattern.quote("|"));
+                users.put(split[0],new String[]{split[1],split[2]});
+            }
+            defUserInfo=Files.readString(Path.of("/home/defaultUserArchive.json"));
         } catch (IOException e)
         {
             throw new RuntimeException(e);
@@ -144,7 +152,8 @@ public class Main {
                         }
 
                         String json = sw.toString();
-                        Files.writeString(Path.of(String.format("D:\\KlotskiServer\\src\\%s_UserInfo.json",str[2])), json);
+                        Files.writeString(Path.of(String.format("/home/%s_UserInfo.json",str[2])), json);
+                        Files.writeString(Path.of("/home/userpassword"),str[2]+"|"+str[3]+"|"+str[1], StandardOpenOption.APPEND);
                         users.put(str[2],new String[]{str[3],str[1]});
 
                     }
@@ -182,7 +191,7 @@ public class Main {
                         emailSockets.put(email, clientId);
 
                         //读取用户信息
-                        String userInfo=Files.readString(Path.of(String.format("D:\\KlotskiServer\\src\\%s_UserInfo.json", email)));
+                        String userInfo=Files.readString(Path.of(String.format("/home/%s_UserInfo.json", email)));
                         ObjectMapper mapper = new ObjectMapper();
 
                         // 解析JSON字符串为JsonNode
@@ -196,7 +205,7 @@ public class Main {
                         // 告知客户端用户信息
                         out.println("0004|"+userInfo);
                         //存档信息
-                        Path userInfopath = Path.of(String.format("D:\\KlotskiServer\\src\\%s_UserArchive.json", email));
+                        Path userInfopath = Path.of(String.format("/home/%s_UserArchive.json", email));
                         if(Files.exists(userInfopath))
                         {
                             String str2 = Files.readString(userInfopath);
@@ -227,7 +236,7 @@ public class Main {
                 break;
             case "0005":
                 String[] m=inputLine.split(Pattern.quote("||"));
-                Path path = Path.of(String.format("D:\\KlotskiServer\\src\\%s_UserArchive.json", str[1]));
+                Path path = Path.of(String.format("/home/%s_UserArchive.json", str[1]));
                 if(!Files.exists(path))
                 {
                     Files.createFile(path);
